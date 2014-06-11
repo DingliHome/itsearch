@@ -29,6 +29,8 @@ public class HomeActivity extends Activity {
 	private String m_home_url = "http://m.iteer.net/modules/xdirectory/index.php";
 	private String m_home_url_near = "http://m.iteer.net/modules/xdirectory/env.php?";
 	private LocationManager locationManager;
+	private String key="M8f4Re3iiSQ696XQCapAyweh";
+	
 	private WebView _webView;
 
 	public HomeActivity() {
