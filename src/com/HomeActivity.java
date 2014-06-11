@@ -1,7 +1,6 @@
 package com;
 
 import src.com.R;
-import android.R.integer;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
