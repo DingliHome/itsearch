@@ -3,16 +3,28 @@ package baidu;
 import src.com.R;
 import android.app.Activity;
 import android.os.Bundle;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
 
 import com.baidu.location.BDLocation;
 import com.baidu.location.BDLocationListener;
 import com.baidu.location.LocationClient;
 import com.baidu.location.LocationClientOption;
 import com.baidu.mapapi.map.BaiduMap;
+import com.baidu.mapapi.map.BaiduMap.OnMarkerClickListener;
+import com.baidu.mapapi.map.BitmapDescriptor;
+import com.baidu.mapapi.map.BitmapDescriptorFactory;
+import com.baidu.mapapi.map.InfoWindow.OnInfoWindowClickListener;
+import com.baidu.mapapi.map.MyLocationConfigeration.LocationMode;
 import com.baidu.mapapi.map.MapStatusUpdate;
 import com.baidu.mapapi.map.MapStatusUpdateFactory;
 import com.baidu.mapapi.map.MapView;
+import com.baidu.mapapi.map.Marker;
+import com.baidu.mapapi.map.MarkerOptions;
+import com.baidu.mapapi.map.MyLocationConfigeration;
 import com.baidu.mapapi.map.MyLocationData;
+import com.baidu.mapapi.map.OverlayOptions;
 import com.baidu.mapapi.model.LatLng;
 
 public class BaiduLocation extends Activity {
@@ -22,24 +34,85 @@ public class BaiduLocation extends Activity {
 	private LocationClient _LocationClient;
 	public MyLocationListenner myListener = new MyLocationListenner();
 	boolean isFirstLoc = true;// 是否首次定位
-	
+	private Marker _marker;
+	private LatLng _lastLatLng;
+	BitmapDescriptor bd = BitmapDescriptorFactory
+			.fromResource(R.drawable.icon_gcoding);
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		// TODO Auto-generated method stub
 		super.onCreate(savedInstanceState);
+		setContentView(R.layout.baidulocation_activity);
+		Button setButton = (Button) findViewById(R.id.setLocation);
+		Button saveButton = (Button) findViewById(R.id.saveLocation);
 
+		InitialMap();
+		
+		saveButton.setOnClickListener(new OnClickListener() {
+
+			@Override
+			public void onClick(View v) {
+
+				finish();
+			}
+		});
+		_baiduMap.setOnMarkerClickListener(new OnMarkerClickListener() {
+
+			@Override
+			public boolean onMarkerClick(Marker arg0) {
+				_lastLatLng = arg0.getPosition();
+
+				return false;
+			}
+		});
+		setButton.setOnClickListener(new OnClickListener() {
+
+			@Override
+			public void onClick(View v) {
+				OnInfoWindowClickListener listener = null;
+				listener = new OnInfoWindowClickListener() {
+
+					@Override
+					public void onInfoWindowClick() {
+						LatLng llNew = new LatLng(_lastLatLng.latitude + 0.005,
+								_lastLatLng.longitude + 0.005);
+						_marker.setPosition(llNew);
+					}
+				};
+			}
+		});
+
+		
+
+	}
+
+	/**
+	 * 初始化坐标点
+	 */
+	private void InitialMarkerOverlay(double lat, double lng) {
+
+		LatLng llA = new LatLng(lat, lng);
+		OverlayOptions ooA = new MarkerOptions().position(llA).icon(bd)
+				.zIndex(9);
+
+		_marker = (Marker) (_baiduMap.addOverlay(ooA));
+	}
+
+	private void InitialMap() {
 		_mapView = (MapView) findViewById(R.id.bdmapview);
 		// 地图初始化
 		_baiduMap = _mapView.getMap();
 		// 开启定位图层
 		_baiduMap.setMyLocationEnabled(true);
+		_baiduMap.setMyLocationConfigeration(new MyLocationConfigeration(LocationMode.NORMAL, true, null));
 		// 定位初始化
-		_LocationClient = new LocationClient(this);
+		_LocationClient = new LocationClient(getApplicationContext());
 		_LocationClient.registerLocationListener(myListener);
-		LocationClientOption option = new LocationClientOption();//用来发起定位，添加取消监听
+		LocationClientOption option = new LocationClientOption();// 用来发起定位，添加取消监听
 		option.setOpenGps(true);// 打开gps
 		option.setCoorType("bd09ll"); // 设置坐标类型
-		option.setScanSpan(1000);//定位的时间间隔，单位：ms  
+		option.setScanSpan(1000);// 定位的时间间隔，单位：ms
 		_LocationClient.setLocOption(option);
 		_LocationClient.start();
 	}
@@ -62,11 +135,11 @@ public class BaiduLocation extends Activity {
 					.longitude(arg0.getLongitude()).build();
 			_baiduMap.setMyLocationData(locationData);
 			if (isFirstLoc) {
-				LatLng ll = new LatLng(arg0.getLatitude(),
-						arg0.getLongitude());
+				LatLng ll = new LatLng(arg0.getLatitude(), arg0.getLongitude());
+				InitialMarkerOverlay(ll.latitude, ll.longitude);
 				MapStatusUpdate u = MapStatusUpdateFactory.newLatLng(ll);
 				_baiduMap.animateMapStatus(u);
-				isFirstLoc=false;
+				isFirstLoc = false;
 			}
 		}
 
@@ -84,20 +157,23 @@ public class BaiduLocation extends Activity {
 		_mapView.onResume();
 		super.onResume();
 	}
+
 	@Override
 	protected void onPause() {
 		// TODO Auto-generated method stub
 		_mapView.onPause();
 		super.onPause();
 	}
+
 	@Override
 	protected void onDestroy() {
 		// 退出时销毁定位
 		_LocationClient.stop();
 		// 关闭定位图层
 		_baiduMap.setMyLocationEnabled(false);
+		
 		_mapView.onDestroy();
-		_mapView=null;
+		_mapView = null;
 		super.onDestroy();
 	}
 }

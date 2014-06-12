@@ -2,18 +2,26 @@ package com;
 
 import src.com.R;
 import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
+import baidu.BaiduLocation;
+
+import com.baidu.mapapi.SDKInitializer;
 
 /**
  * 
@@ -25,16 +33,14 @@ import android.widget.Button;
  */
 public class HomeActivity extends Activity {
 
+	private static final String LTAG = HomeActivity.class.getSimpleName();
 	private String m_home_url = "http://m.iteer.net/modules/xdirectory/index.php";
 	private String m_home_url_near = "http://m.iteer.net/modules/xdirectory/env.php?";
 	private LocationManager locationManager;
-	private String key="M8f4Re3iiSQ696XQCapAyweh";
-	
+	private String key = "M8f4Re3iiSQ696XQCapAyweh";
+
 	private WebView _webView;
-
-	public HomeActivity() {
-
-	}
+	private SDKReceiver _receiver;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -74,7 +80,7 @@ public class HomeActivity extends Activity {
 		};
 		locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 		locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
-				30*1000, 0, listener);
+				30 * 1000, 0, listener);
 
 		Button button = (Button) findViewById(R.id.locationbtn);
 		button.setOnClickListener(new OnClickListener() {
@@ -84,11 +90,45 @@ public class HomeActivity extends Activity {
 				// TODO Auto-generated method stub
 				Location location = locationManager
 						.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-
-				double lat = location.getLatitude();
-				double lng = location.getLongitude();
+				if (location != null) {
+					double lat = location.getLatitude();
+					double lng = location.getLongitude();
+				}
 			}
 		});
+
+		// 注册 SDK 广播监听者
+		IntentFilter iFilter = new IntentFilter();
+		iFilter.addAction(SDKInitializer.SDK_BROADTCAST_ACTION_STRING_PERMISSION_CHECK_ERROR);
+		iFilter.addAction(SDKInitializer.SDK_BROADCAST_ACTION_STRING_NETWORK_ERROR);
+		_receiver = new SDKReceiver();
+		registerReceiver(_receiver, iFilter);
+	}
+	
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		getMenuInflater().inflate(R.menu.menu, menu);
+		return super.onCreateOptionsMenu(menu);
+	}
+	
+	@Override
+	public boolean onMenuItemSelected(int featureId, MenuItem item) {
+		switch (item.getItemId()) {
+		case R.id.locationMap:
+			Intent intent = new Intent(HomeActivity.this,BaiduLocation.class);
+			startActivity(intent);
+			break;
+
+		default:
+			break;
+		}
+		return super.onMenuItemSelected(featureId, item);
+	}
+	
+	@Override
+	protected void onDestroy() {
+		unregisterReceiver(_receiver);
+		super.onDestroy();
 	}
 
 	public void initWebView() {
@@ -128,4 +168,20 @@ public class HomeActivity extends Activity {
 		});
 	}
 
+	/**
+	 * 构造广播监听类，监听 SDK key 验证以及网络异常广播
+	 */
+	public class SDKReceiver extends BroadcastReceiver {
+		public void onReceive(Context context, Intent intent) {
+			String s = intent.getAction();
+			Log.d(LTAG, "action: " + s);
+
+			if (s.equals(SDKInitializer.SDK_BROADTCAST_ACTION_STRING_PERMISSION_CHECK_ERROR)) {
+				Log.i("", "");
+			} else if (s
+					.equals(SDKInitializer.SDK_BROADCAST_ACTION_STRING_NETWORK_ERROR)) {
+				Log.i("", "");
+			}
+		}
+	}
 }
