@@ -2,6 +2,7 @@ package baidu;
 
 import src.com.R;
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -12,17 +13,17 @@ import com.baidu.location.BDLocationListener;
 import com.baidu.location.LocationClient;
 import com.baidu.location.LocationClientOption;
 import com.baidu.mapapi.map.BaiduMap;
-import com.baidu.mapapi.map.BaiduMap.OnMarkerClickListener;
+import com.baidu.mapapi.map.BaiduMap.OnMapClickListener;
 import com.baidu.mapapi.map.BitmapDescriptor;
 import com.baidu.mapapi.map.BitmapDescriptorFactory;
-import com.baidu.mapapi.map.InfoWindow.OnInfoWindowClickListener;
-import com.baidu.mapapi.map.MyLocationConfigeration.LocationMode;
+import com.baidu.mapapi.map.MapPoi;
 import com.baidu.mapapi.map.MapStatusUpdate;
 import com.baidu.mapapi.map.MapStatusUpdateFactory;
 import com.baidu.mapapi.map.MapView;
 import com.baidu.mapapi.map.Marker;
 import com.baidu.mapapi.map.MarkerOptions;
 import com.baidu.mapapi.map.MyLocationConfigeration;
+import com.baidu.mapapi.map.MyLocationConfigeration.LocationMode;
 import com.baidu.mapapi.map.MyLocationData;
 import com.baidu.mapapi.map.OverlayOptions;
 import com.baidu.mapapi.model.LatLng;
@@ -36,6 +37,7 @@ public class BaiduLocation extends Activity {
 	boolean isFirstLoc = true;// 是否首次定位
 	private Marker _marker;
 	private LatLng _lastLatLng;
+	private boolean _isChangedLocation;
 	BitmapDescriptor bd = BitmapDescriptorFactory
 			.fromResource(R.drawable.icon_gcoding);
 
@@ -47,43 +49,47 @@ public class BaiduLocation extends Activity {
 		Button setButton = (Button) findViewById(R.id.setLocation);
 		Button saveButton = (Button) findViewById(R.id.saveLocation);
 
+		Bundle bundleExtra = getIntent().getExtras();
+
+		double[] doubleArray = bundleExtra.getDoubleArray("location");
+		_lastLatLng = new LatLng(doubleArray[0], doubleArray[1]);
+		
 		InitialMap();
 		
+		if (_lastLatLng.latitude != 0d) {
+			MapStatusUpdate u = MapStatusUpdateFactory.newLatLng(_lastLatLng);
+			_baiduMap.animateMapStatus(u);
+		}
 		saveButton.setOnClickListener(new OnClickListener() {
 
 			@Override
 			public void onClick(View v) {
-
+				_isChangedLocation = false;
 				finish();
 			}
 		});
-		_baiduMap.setOnMarkerClickListener(new OnMarkerClickListener() {
+		_baiduMap.setOnMapClickListener(new OnMapClickListener() {
 
 			@Override
-			public boolean onMarkerClick(Marker arg0) {
-				_lastLatLng = arg0.getPosition();
-
+			public boolean onMapPoiClick(MapPoi arg0) {
+				// TODO Auto-generated method stub
 				return false;
 			}
+
+			@Override
+			public void onMapClick(LatLng arg0) {
+				_lastLatLng = new LatLng(arg0.latitude, arg0.longitude);
+				_marker.setPosition(_lastLatLng);
+			}
 		});
+
 		setButton.setOnClickListener(new OnClickListener() {
 
 			@Override
 			public void onClick(View v) {
-				OnInfoWindowClickListener listener = null;
-				listener = new OnInfoWindowClickListener() {
-
-					@Override
-					public void onInfoWindowClick() {
-						LatLng llNew = new LatLng(_lastLatLng.latitude + 0.005,
-								_lastLatLng.longitude + 0.005);
-						_marker.setPosition(llNew);
-					}
-				};
+				_isChangedLocation = true;
 			}
 		});
-
-		
 
 	}
 
@@ -99,13 +105,17 @@ public class BaiduLocation extends Activity {
 		_marker = (Marker) (_baiduMap.addOverlay(ooA));
 	}
 
+	/**
+	 * 初始化地图
+	 */
 	private void InitialMap() {
 		_mapView = (MapView) findViewById(R.id.bdmapview);
 		// 地图初始化
 		_baiduMap = _mapView.getMap();
 		// 开启定位图层
 		_baiduMap.setMyLocationEnabled(true);
-		_baiduMap.setMyLocationConfigeration(new MyLocationConfigeration(LocationMode.NORMAL, true, null));
+		_baiduMap.setMyLocationConfigeration(new MyLocationConfigeration(
+				LocationMode.NORMAL, true, null));
 		// 定位初始化
 		_LocationClient = new LocationClient(getApplicationContext());
 		_LocationClient.registerLocationListener(myListener);
@@ -171,7 +181,7 @@ public class BaiduLocation extends Activity {
 		_LocationClient.stop();
 		// 关闭定位图层
 		_baiduMap.setMyLocationEnabled(false);
-		
+
 		_mapView.onDestroy();
 		_mapView = null;
 		super.onDestroy();

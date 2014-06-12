@@ -22,6 +22,7 @@ import android.widget.Button;
 import baidu.BaiduLocation;
 
 import com.baidu.mapapi.SDKInitializer;
+import com.baidu.mapapi.model.LatLng;
 
 /**
  * 
@@ -38,7 +39,7 @@ public class HomeActivity extends Activity {
 	private String m_home_url_near = "http://m.iteer.net/modules/xdirectory/env.php?";
 	private LocationManager locationManager;
 	private String key = "M8f4Re3iiSQ696XQCapAyweh";
-
+	private LatLng _latLng;
 	private WebView _webView;
 	private SDKReceiver _receiver;
 
@@ -73,6 +74,8 @@ public class HomeActivity extends Activity {
 			public void onLocationChanged(Location location) {
 				// TODO Auto-generated method stub
 				if (location != null) {
+					_latLng = new LatLng(location.getLatitude(),
+							location.getLongitude());
 					Log.i("location", "Lat:" + location.getLatitude() + " Lng:"
 							+ location.getLongitude());
 				}
@@ -104,18 +107,21 @@ public class HomeActivity extends Activity {
 		_receiver = new SDKReceiver();
 		registerReceiver(_receiver, iFilter);
 	}
-	
+
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		getMenuInflater().inflate(R.menu.menu, menu);
 		return super.onCreateOptionsMenu(menu);
 	}
-	
+
 	@Override
 	public boolean onMenuItemSelected(int featureId, MenuItem item) {
 		switch (item.getItemId()) {
 		case R.id.locationMap:
-			Intent intent = new Intent(HomeActivity.this,BaiduLocation.class);
+			Intent intent = new Intent(HomeActivity.this, BaiduLocation.class);
+			Bundle bundle = new Bundle();
+			bundle.putDoubleArray("location", new double[]{_latLng.latitude,_latLng.longitude});
+			intent.putExtras(bundle);
 			startActivity(intent);
 			break;
 
@@ -124,7 +130,7 @@ public class HomeActivity extends Activity {
 		}
 		return super.onMenuItemSelected(featureId, item);
 	}
-	
+
 	@Override
 	protected void onDestroy() {
 		unregisterReceiver(_receiver);
