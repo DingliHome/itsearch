@@ -15,8 +15,8 @@
         android:theme="@style/AppTheme" >
         <meta-data
             android:name="com.baidu.lbsapi.API_KEY"
-            android:value="elAv6LGBotIDDnxU9uDcmu5l" />
-
+            android:value="UnHqZqZud9bCLwTtIxzFvZR8" />
+<!-- elAv6LGBotIDDnxU9uDcmu5l -->
         <activity android:name="com.HomeActivity" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

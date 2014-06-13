@@ -7,6 +7,7 @@ import java.util.Locale;
 import src.com.R;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -16,9 +17,11 @@ import android.graphics.Bitmap;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.LocationManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -47,11 +50,11 @@ public class HomeActivity extends Activity {
 	private WebView _webView;
 	private SDKReceiver _receiver;
 	private int _baiduViewRequest = 1;
-	private Handler _handler = new Handler(){
-		
+	private Handler _handler = new Handler() {
+
 		@Override
 		public void handleMessage(Message msg) {
-			
+
 			super.handleMessage(msg);
 		}
 	};
@@ -61,6 +64,10 @@ public class HomeActivity extends Activity {
 		// TODO Auto-generated method stub
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.home_activity);
+
+		if (!isGPSEnable()) {
+			toggleGPS();
+		}
 
 		setTitle("当前位置是：");
 
@@ -151,6 +158,38 @@ public class HomeActivity extends Activity {
 			}
 		}
 		return super.onKeyDown(keyCode, event);
+	}
+
+	private boolean isGPSEnable() {
+		String str = Settings.Secure.getString(getContentResolver(),
+				"location_providers_allowed");
+
+		boolean bool1 = false;
+		if (str != null) {
+			boolean bool2 = str.contains("gps");
+			bool1 = false;
+			if (bool2) {
+				bool1 = true;
+			}
+		}
+		return bool1;
+	}
+
+	/**
+	 * 请求打开gps
+	 */
+	private void toggleGPS() {
+		Intent localIntent = new Intent();
+		localIntent.setClassName("com.android.settings",
+				"com.android.settings.widget.SettingsAppWidgetProvider");
+		localIntent.addCategory("android.intent.category.ALTERNATIVE");
+		localIntent.setData(Uri.parse("custom:3"));
+		try {
+			PendingIntent.getBroadcast(this, 0, localIntent, 0).send();
+			return;
+		} catch (PendingIntent.CanceledException localCanceledException) {
+			localCanceledException.printStackTrace();
+		}
 	}
 
 	/**
