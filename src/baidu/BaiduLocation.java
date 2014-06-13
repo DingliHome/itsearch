@@ -52,34 +52,54 @@ public class BaiduLocation extends Activity {
 		Bundle bundleExtra = getIntent().getExtras();
 
 		double[] doubleArray = bundleExtra.getDoubleArray("location");
-		_lastLatLng = new LatLng(doubleArray[0], doubleArray[1]);
-		
-		InitialMap();
-		
-		if (_lastLatLng.latitude != 0d) {
-			MapStatusUpdate u = MapStatusUpdateFactory.newLatLng(_lastLatLng);
-			_baiduMap.animateMapStatus(u);
+		if (doubleArray.length > 1) {
+			_lastLatLng = new LatLng(doubleArray[0], doubleArray[1]);
 		}
+
+		InitialMap();
+
+		/*if (_lastLatLng != null && _lastLatLng.latitude != 0d) {
+			MyLocationData locationData = new MyLocationData.Builder()
+					.accuracy(0f)
+					// 此处设置开发者获取到的方向信息，顺时针0-360
+					.direction(100).latitude(_lastLatLng.latitude)
+					.longitude(_lastLatLng.longitude).build();
+			_baiduMap.setMyLocationData(locationData);
+			if (isFirstLoc) {
+				InitialMarkerOverlay(_lastLatLng.latitude, _lastLatLng.longitude);
+				MapStatusUpdate u = MapStatusUpdateFactory.newLatLng(_lastLatLng);
+				_baiduMap.animateMapStatus(u);
+				isFirstLoc=false;
+			}
+			
+		}*/
 		saveButton.setOnClickListener(new OnClickListener() {
 
 			@Override
 			public void onClick(View v) {
 				_isChangedLocation = false;
+				Intent intent = new Intent();
+				intent.putExtra("resultDatas", new double[] {
+						_lastLatLng.latitude, _lastLatLng.longitude });
+				setResult(1, intent);
 				finish();
 			}
 		});
+
 		_baiduMap.setOnMapClickListener(new OnMapClickListener() {
 
 			@Override
 			public boolean onMapPoiClick(MapPoi arg0) {
-				// TODO Auto-generated method stub
+
 				return false;
 			}
 
 			@Override
 			public void onMapClick(LatLng arg0) {
-				_lastLatLng = new LatLng(arg0.latitude, arg0.longitude);
-				_marker.setPosition(_lastLatLng);
+				if (_isChangedLocation) {
+					_lastLatLng = new LatLng(arg0.latitude, arg0.longitude);
+					_marker.setPosition(_lastLatLng);
+				}
 			}
 		});
 
