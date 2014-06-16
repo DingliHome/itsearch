@@ -8,6 +8,7 @@ import src.com.R;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.PendingIntent;
+import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -17,10 +18,13 @@ import android.graphics.Bitmap;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.LocationManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.os.Process;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -28,6 +32,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Toast;
 import baidu.BaiduLocation;
 
 import com.baidu.mapapi.SDKInitializer;
@@ -50,11 +55,26 @@ public class HomeActivity extends Activity {
 	private WebView _webView;
 	private SDKReceiver _receiver;
 	private int _baiduViewRequest = 1;
+	private final int ProcessVisible = 0;
+	private final int ProcessHiddle = 1;
+	private boolean _isNetWorkAvaible = false;
+	ProgressDialog _pd;
+
 	private Handler _handler = new Handler() {
 
 		@Override
 		public void handleMessage(Message msg) {
-
+			if (!Thread.currentThread().isInterrupted()) {
+				switch (msg.what) {
+				case ProcessVisible:
+					_pd.show();
+					break;
+				case ProcessHiddle:
+					_pd.hide();
+				default:
+					break;
+				}
+			}
 			super.handleMessage(msg);
 		}
 	};
@@ -65,11 +85,18 @@ public class HomeActivity extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.home_activity);
 
-		if (!isGPSEnable()) {
-			toggleGPS();
-		}
-
+		_pd = new ProgressDialog(this);
+		_pd.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+		_pd.setMessage("Loading...");
 		setTitle("当前位置是：");
+
+		_isNetWorkAvaible = isNetworkAvailable(this);
+		if (!_isNetWorkAvaible) {
+			ConfirmNetworkSetting();
+		} else {
+			initWebView();
+			LoadUrl(_webView, m_home_url);
+		}
 
 		// 注册 SDK 广播监听者
 		IntentFilter iFilter = new IntentFilter();
@@ -77,10 +104,35 @@ public class HomeActivity extends Activity {
 		iFilter.addAction(SDKInitializer.SDK_BROADCAST_ACTION_STRING_NETWORK_ERROR);
 		_receiver = new SDKReceiver();
 		registerReceiver(_receiver, iFilter);
+	}
 
-		initWebView();
+	public void ConfirmNetworkSetting() {
+		AlertDialog.Builder localBuilder = new AlertDialog.Builder(this);
+		localBuilder.setTitle("没找到网络!");
+		localBuilder.setMessage("设置Wifi或移动网络？");
+		localBuilder.setPositiveButton("是",
+				new DialogInterface.OnClickListener() {
+					public void onClick(
+							DialogInterface paramAnonymousDialogInterface,
+							int paramAnonymousInt) {
+						popMessage("请开启Wifi或移动网路!!");
+						startActivityForResult(new Intent(
+								"android.settings.WIRELESS_SETTINGS"), 2);
+					}
+				});
+		localBuilder.setNegativeButton("退出",
+				new DialogInterface.OnClickListener() {
+					public void onClick(
+							DialogInterface paramAnonymousDialogInterface,
+							int paramAnonymousInt) {
+						finish();
+					}
+				});
+		localBuilder.show();
+	}
 
-		LoadUrl(_webView, this.m_home_url);
+	public void popMessage(String paramString) {
+		Toast.makeText(this, paramString, 0).show();
 	}
 
 	@Override
@@ -116,31 +168,24 @@ public class HomeActivity extends Activity {
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		if (requestCode == _baiduViewRequest) {
-			double[] doubleArrayExtra = data.getDoubleArrayExtra("resultDatas");
-			_latLng = new LatLng(doubleArrayExtra[0], doubleArrayExtra[1]);
-			Geocoder geocoder = new Geocoder(getBaseContext(),
-					Locale.getDefault());
-			String addString = "当前位置是：";
-			try {
-				List<Address> addresslist = geocoder.getFromLocation(
-						_latLng.latitude, _latLng.longitude, 5);
-				if (!addresslist.isEmpty()) {
-					Address address = addresslist.get(0);
-					int lineIndex = address.getMaxAddressLineIndex();
-					if (lineIndex >= 2) {
-						addString += address.getAddressLine(1)
-								+ address.getAddressLine(2);
-					} else {
-						addString += address.getAddressLine(1);
-					}
-				}
-				setTitle(addString.toString());
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-				LoadLocationUrl();
+			Bundle extras = data.getExtras();
+			String stringExtra = extras.getString("location");
+			double[] doubleArrayExtra = extras.getDoubleArray("resultDatas");
+
+			if (stringExtra != null) {
+				setTitle("当前位置是：" + stringExtra);
 			}
+			if (doubleArrayExtra != null && doubleArrayExtra.length > 1) {
+				_latLng = new LatLng(doubleArrayExtra[0], doubleArrayExtra[1]);
+			}
+
+			LoadLocationUrl();
 		}
+		if (requestCode == 2) {
+			initWebView();
+			LoadUrl(_webView, m_home_url);
+		}
+
 		super.onActivityResult(requestCode, resultCode, data);
 	}
 
@@ -160,45 +205,13 @@ public class HomeActivity extends Activity {
 		return super.onKeyDown(keyCode, event);
 	}
 
-	private boolean isGPSEnable() {
-		String str = Settings.Secure.getString(getContentResolver(),
-				"location_providers_allowed");
-
-		boolean bool1 = false;
-		if (str != null) {
-			boolean bool2 = str.contains("gps");
-			bool1 = false;
-			if (bool2) {
-				bool1 = true;
-			}
-		}
-		return bool1;
-	}
-
-	/**
-	 * 请求打开gps
-	 */
-	private void toggleGPS() {
-		Intent localIntent = new Intent();
-		localIntent.setClassName("com.android.settings",
-				"com.android.settings.widget.SettingsAppWidgetProvider");
-		localIntent.addCategory("android.intent.category.ALTERNATIVE");
-		localIntent.setData(Uri.parse("custom:3"));
-		try {
-			PendingIntent.getBroadcast(this, 0, localIntent, 0).send();
-			return;
-		} catch (PendingIntent.CanceledException localCanceledException) {
-			localCanceledException.printStackTrace();
-		}
-	}
-
 	/**
 	 * 退出确认
 	 */
 	private void ConfirmExit() {
 		AlertDialog.Builder localBuilder = new AlertDialog.Builder(this);
 		localBuilder.setTitle("退出");
-		localBuilder.setMessage("是否退出IT人手册?");
+		localBuilder.setMessage("是否退出ITSearch?");
 		localBuilder.setPositiveButton("是",
 				new DialogInterface.OnClickListener() {
 					public void onClick(
@@ -235,20 +248,20 @@ public class HomeActivity extends Activity {
 		_webView.setWebViewClient(new WebViewClient() {
 			@Override
 			public void onPageFinished(WebView view, String url) {
-				// TODO Auto-generated method stub
+				_handler.sendEmptyMessage(ProcessHiddle);
 				super.onPageFinished(view, url);
 			}
 
 			@Override
 			public void onPageStarted(WebView view, String url, Bitmap favicon) {
-				// TODO Auto-generated method stub
+				_handler.sendEmptyMessage(ProcessVisible);
 				super.onPageStarted(view, url, favicon);
 			}
 
 			@Override
 			public void onReceivedError(WebView view, int errorCode,
 					String description, String failingUrl) {
-				// TODO Auto-generated method stub
+				_handler.sendEmptyMessage(ProcessHiddle);
 				super.onReceivedError(view, errorCode, description, failingUrl);
 			}
 
@@ -269,6 +282,24 @@ public class HomeActivity extends Activity {
 		this.m_home_url = (this.m_home_url_near + "lat=" + String.valueOf(d1)
 				+ "&lng=" + String.valueOf(d2));
 		LoadUrl(_webView, this.m_home_url);
+	}
+
+	/**
+	 * 网络是否可用
+	 * 
+	 * @return
+	 */
+	private boolean isNetworkAvailable(Activity activity) {
+		ConnectivityManager conn = (ConnectivityManager) activity
+				.getApplicationContext().getSystemService(CONNECTIVITY_SERVICE);
+		if (conn != null) {
+			NetworkInfo networkInfo = conn.getActiveNetworkInfo();
+			if (networkInfo == null) {
+				return false;
+			}
+			return networkInfo.isAvailable();
+		}
+		return false;
 	}
 
 	/**

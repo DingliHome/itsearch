@@ -38,12 +38,13 @@ public class BaiduLocation extends Activity {
 	private Marker _marker;
 	private LatLng _lastLatLng;
 	private boolean _isChangedLocation;
+	private String _locationAddr;
 	BitmapDescriptor bd = BitmapDescriptorFactory
 			.fromResource(R.drawable.icon_gcoding);
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
-		// TODO Auto-generated method stub
+
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.baidulocation_activity);
 		Button setButton = (Button) findViewById(R.id.setLocation);
@@ -58,30 +59,19 @@ public class BaiduLocation extends Activity {
 
 		InitialMap();
 
-		/*if (_lastLatLng != null && _lastLatLng.latitude != 0d) {
-			MyLocationData locationData = new MyLocationData.Builder()
-					.accuracy(0f)
-					// 此处设置开发者获取到的方向信息，顺时针0-360
-					.direction(100).latitude(_lastLatLng.latitude)
-					.longitude(_lastLatLng.longitude).build();
-			_baiduMap.setMyLocationData(locationData);
-			if (isFirstLoc) {
-				InitialMarkerOverlay(_lastLatLng.latitude, _lastLatLng.longitude);
-				MapStatusUpdate u = MapStatusUpdateFactory.newLatLng(_lastLatLng);
-				_baiduMap.animateMapStatus(u);
-				isFirstLoc=false;
-			}
-			
-		}*/
 		saveButton.setOnClickListener(new OnClickListener() {
 
 			@Override
 			public void onClick(View v) {
 				_isChangedLocation = false;
 				Intent intent = new Intent();
-				intent.putExtra("resultDatas", new double[] {
+				Bundle bundle = new Bundle();
+				bundle.putDoubleArray("resultDatas", new double[] {
 						_lastLatLng.latitude, _lastLatLng.longitude });
+				bundle.putString("location", _locationAddr);
+				intent.putExtras(bundle);
 				setResult(1, intent);
+				
 				finish();
 			}
 		});
@@ -99,6 +89,7 @@ public class BaiduLocation extends Activity {
 				if (_isChangedLocation) {
 					_lastLatLng = new LatLng(arg0.latitude, arg0.longitude);
 					_marker.setPosition(_lastLatLng);
+					
 				}
 			}
 		});
@@ -121,7 +112,7 @@ public class BaiduLocation extends Activity {
 		LatLng llA = new LatLng(lat, lng);
 		OverlayOptions ooA = new MarkerOptions().position(llA).icon(bd)
 				.zIndex(9);
-
+		
 		_marker = (Marker) (_baiduMap.addOverlay(ooA));
 	}
 
@@ -140,11 +131,14 @@ public class BaiduLocation extends Activity {
 		_LocationClient = new LocationClient(getApplicationContext());
 		_LocationClient.registerLocationListener(myListener);
 		LocationClientOption option = new LocationClientOption();// 用来发起定位，添加取消监听
-		option.setOpenGps(true);// 打开gps
+		option.setLocationMode(com.baidu.location.LocationClientOption.LocationMode.Hight_Accuracy);// 设置定位模式
+		option.setIsNeedAddress(true);// 返回的定位结果包含地址信息
+		option.setNeedDeviceDirect(true);// 返回的定位结果包含手机机头的方向
 		option.setCoorType("bd09ll"); // 设置坐标类型
-		option.setScanSpan(1000);// 定位的时间间隔，单位：ms
+		option.setScanSpan(60000);// 定位的时间间隔，单位：ms
 		_LocationClient.setLocOption(option);
 		_LocationClient.start();
+		
 	}
 
 	/**
@@ -153,24 +147,35 @@ public class BaiduLocation extends Activity {
 	public class MyLocationListenner implements BDLocationListener {
 
 		@Override
-		public void onReceiveLocation(BDLocation arg0) {
-			// TODO Auto-generated method stub
-			if (arg0 == null || _mapView == null) {
+		public void onReceiveLocation(BDLocation location) {
+			
+			if (location == null || _mapView == null) {
 				return;
 			}
+			_locationAddr = location.getAddrStr();
+
 			MyLocationData locationData = new MyLocationData.Builder()
-					.accuracy(arg0.getRadius())
+					.accuracy(location.getRadius())
 					// 此处设置开发者获取到的方向信息，顺时针0-360
-					.direction(100).latitude(arg0.getLatitude())
-					.longitude(arg0.getLongitude()).build();
+					.direction(100).latitude(location.getLatitude())
+					.longitude(location.getLongitude()).build();
 			_baiduMap.setMyLocationData(locationData);
+
 			if (isFirstLoc) {
-				LatLng ll = new LatLng(arg0.getLatitude(), arg0.getLongitude());
+				LatLng ll = null;
+				if (_lastLatLng != null && _lastLatLng.latitude != 0d) {
+					ll = new LatLng(_lastLatLng.latitude, _lastLatLng.longitude);
+				} else {
+					ll = new LatLng(location.getLatitude(),
+							location.getLongitude());
+				}
+
 				InitialMarkerOverlay(ll.latitude, ll.longitude);
 				MapStatusUpdate u = MapStatusUpdateFactory.newLatLng(ll);
 				_baiduMap.animateMapStatus(u);
 				isFirstLoc = false;
 			}
+
 		}
 
 		@Override
