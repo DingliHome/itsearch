@@ -135,7 +135,7 @@ public class BaiduLocation extends Activity {
 		option.setIsNeedAddress(true);// 返回的定位结果包含地址信息
 		option.setNeedDeviceDirect(true);// 返回的定位结果包含手机机头的方向
 		option.setCoorType("bd09ll"); // 设置坐标类型
-		option.setScanSpan(60000);// 定位的时间间隔，单位：ms
+		option.setScanSpan(2000);// 定位的时间间隔，单位：ms
 		_LocationClient.setLocOption(option);
 		_LocationClient.start();
 		
