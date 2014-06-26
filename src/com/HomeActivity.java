@@ -145,9 +145,10 @@ public class HomeActivity extends Activity {
 	public boolean onMenuItemSelected(int featureId, MenuItem item) {
 		switch (item.getItemId()) {
 		case R.id.locationMap:
+
 			Intent intent = new Intent(HomeActivity.this, BaiduLocation.class);
 			Bundle bundle = new Bundle();
-			double[] data;
+			double[] data = null;
 			if (_latLng == null || _latLng == null) {
 				data = new double[] {};
 			} else {
@@ -157,8 +158,8 @@ public class HomeActivity extends Activity {
 			bundle.putDoubleArray("location", data);
 			intent.putExtras(bundle);
 			startActivityForResult(intent, _baiduViewRequest);
-			break;
 
+			break;
 		default:
 			break;
 		}
